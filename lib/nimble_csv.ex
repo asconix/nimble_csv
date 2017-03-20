@@ -1,4 +1,5 @@
 defmodule NimbleCSV do
+  require Logger
   @moduledoc ~S"""
   NimbleCSV is a small and fast parsing and dumping library.
 
@@ -100,6 +101,7 @@ defmodule NimbleCSV do
     * `:separator`- the CSV separator, defaults to `","`
     * `:escape`- the CSV escape, defaults to `"\""`
     * `:moduledoc` - the documentation for the generated module
+    * `:on_error` - handling of faulty CSV lines (:raise, :ignore or :ignore_log), defaults to :raise
 
   ## Parser/Dumper API
 
@@ -187,6 +189,7 @@ defmodule NimbleCSV do
           {:line, row} -> {[row], :line}
           {:header, _} -> {[], :line}
           {:escape, _, _, _} = escape -> {[], escape}
+          {:silent_error, _} -> {[], :line}
         end
       end
 
@@ -210,7 +213,9 @@ defmodule NimbleCSV do
               <<prefix::size(pos)-binary, @separator, @escape, rest::binary>> ->
                 escape(rest, "", row ++ :binary.split(prefix, separator, [:global]), state, separator, escape)
               _ ->
-                raise ParseError, "unexpected escape character #{@escape} in #{inspect line}"
+                Logger.info "unexpected escape character #{@escape} in #{inspect line} (silent error, :on_error set to :ignore_log)"
+                {:silent_error, "unexpected escape character #{@escape} in #{inspect line} (silent error, :on_error set to :ignore_log)"}
+                # raise ParseError, "unexpected escape character #{@escape} in #{inspect line}"
             end
 
           :nomatch ->
@@ -242,7 +247,9 @@ defmodule NimbleCSV do
               <<prefix::size(offset)-binary, @escape>> ->
                 {state, row ++ [entry <> prefix]}
               _ ->
-                raise ParseError, "unexpected escape character #{@escape} in #{inspect line}"
+                Logger.info "unexpected escape character #{@escape} in #{inspect line} (silent error, :on_error set to :ignore_log)"
+                {:silent_error, "unexpected escape character #{@escape} in #{inspect line} (silent error, :on_error set to :ignore_log)"}
+                # raise ParseError, "unexpected escape character #{@escape} in #{inspect line}"
             end
           :nomatch ->
             {:escape, entry <> line, row, state}
